@@ -1,43 +1,26 @@
-const express = require("express");
-const axios = require("axios");
-const https = require("https");
+import express from "express";
+import fetch from "node-fetch";
 
 const app = express();
-app.use(express.json());
+const TARGET_DOMAIN = process.env.TARGET_DOMAIN;
 
-const PORT = process.env.PORT || 3000;
-
-const TARGET = "https://s2.jok3r.ir:3030";
-
-// 🔥 تنظیم مهم SSL
-const agent = new https.Agent({
-  rejectUnauthorized: false, // موقت برای رد نشدن SSL
-  servername: "s2.jok3r.ir"  // SNI درست
-});
-
-app.use("/", async (req, res) => {
+app.use(async (req, res) => {
   try {
-    const url = TARGET + req.url;
+    const url = TARGET_DOMAIN + req.originalUrl;
 
-    const response = await axios({
+    const response = await fetch(url, {
       method: req.method,
-      url: url,
-      data: req.body,
-      httpsAgent: agent,
-      headers: {
-        ...req.headers,
-        host: "s2.jok3r.ir" // 🔥 مهم
-      },
-      validateStatus: () => true
+      headers: req.headers,
+      body: req.method !== "GET" ? req.body : undefined
     });
 
-    res.status(response.status).send(response.data);
+    const data = await response.text();
 
+    res.status(response.status).send(data);
   } catch (err) {
-    res.status(500).send("Proxy Error: " + err.message);
+    res.status(500).send("Relay error");
   }
 });
 
-app.listen(PORT, () => {
-  console.log("Server running on " + PORT);
-});
+const port = process.env.PORT || 3000;
+app.listen(port, () => console.log("Server running on", port));
