@@ -1,19 +1,20 @@
 const express = require("express");
 const axios = require("axios");
-const path = require("path");
+const https = require("https");
 
 const app = express();
 app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 
-// آدرس سرور اصلی
 const TARGET = "https://s2.jok3r.ir:3030";
 
-// اگر public داری
-app.use(express.static("public"));
+// 🔥 تنظیم مهم SSL
+const agent = new https.Agent({
+  rejectUnauthorized: false, // موقت برای رد نشدن SSL
+  servername: "s2.jok3r.ir"  // SNI درست
+});
 
-// Proxy کامل (مثل XHTTP Relay)
 app.use("/", async (req, res) => {
   try {
     const url = TARGET + req.url;
@@ -21,13 +22,16 @@ app.use("/", async (req, res) => {
     const response = await axios({
       method: req.method,
       url: url,
-      headers: req.headers,
       data: req.body,
+      httpsAgent: agent,
+      headers: {
+        ...req.headers,
+        host: "s2.jok3r.ir" // 🔥 مهم
+      },
       validateStatus: () => true
     });
 
-    res.status(response.status);
-    res.send(response.data);
+    res.status(response.status).send(response.data);
 
   } catch (err) {
     res.status(500).send("Proxy Error: " + err.message);
@@ -35,5 +39,5 @@ app.use("/", async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log("Server running on port " + PORT);
+  console.log("Server running on " + PORT);
 });
