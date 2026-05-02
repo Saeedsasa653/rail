@@ -16,8 +16,13 @@ app.all("*", async (req, res) => {
 
     const response = await fetch(url, {
       method: req.method,
-      headers: req.headers,
-      body: req.method !== "GET" && req.method !== "HEAD" ? JSON.stringify(req.body) : undefined
+      headers: {
+        ...req.headers,
+        host: new URL(TARGET_DOMAIN).host
+      },
+      body: req.method !== "GET" && req.method !== "HEAD"
+        ? JSON.stringify(req.body)
+        : undefined
     });
 
     const data = await response.text();
@@ -28,7 +33,7 @@ app.all("*", async (req, res) => {
   }
 });
 
-const port = process.env.PORT || 8080;
+const port = process.env.PORT || 3000;
 app.listen(port, () => {
   console.log("Server running on port", port);
 });
