@@ -1,7 +1,7 @@
 {
-  "name": "fly-relay",
-  "type": "module",
+  "name": "railway-relay",
   "version": "1.0.0",
+  "type": "module",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js"
