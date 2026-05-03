@@ -4,41 +4,42 @@ import { createProxyServer } from "http-proxy";
 
 const app = express();
 
-/**
- * 🔥 Target server (Xray / panel / node)
- * مثال:
- * https://your-server.com:443
- */
 const TARGET = process.env.TARGET_DOMAIN;
 
-// اگر تنظیم نشده
 if (!TARGET) {
-  console.log("❌ TARGET_DOMAIN is not set");
-  process.exit(1);
+  console.error("❌ TARGET_DOMAIN is missing");
+  // ❌ به جای exit، سرویس بالا بمونه
 }
 
 const proxy = createProxyServer({
-  target: TARGET,
+  target: TARGET || "http://example.com",
   changeOrigin: true,
   ws: true,
   secure: false,
 });
 
-// HTTP proxy
-app.use((req, res) => {
-  proxy.web(req, res);
+proxy.on("error", (err) => {
+  console.error("Proxy error:", err.message);
 });
 
-// WebSocket support (مهم برای VLESS WS / XHTTP relay)
+// HTTP
+app.use((req, res) => {
+  proxy.web(req, res, {}, (err) => {
+    res.status(502).send("Bad Gateway");
+  });
+});
+
 const server = http.createServer(app);
 
+// WebSocket (safe)
 server.on("upgrade", (req, socket, head) => {
-  proxy.ws(req, socket, head);
+  proxy.ws(req, socket, head, {}, () => {
+    socket.destroy();
+  });
 });
 
 const PORT = process.env.PORT || 3000;
 
 server.listen(PORT, () => {
-  console.log("🚀 Railway XHTTP Relay running on port", PORT);
-  console.log("➡️ Target:", TARGET);
+  console.log("🚀 running on", PORT);
 });
