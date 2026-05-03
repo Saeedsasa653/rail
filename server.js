@@ -1,39 +1,44 @@
 import express from "express";
+import http from "http";
+import { createProxyServer } from "http-proxy";
 
 const app = express();
-const TARGET_DOMAIN = process.env.TARGET_DOMAIN;
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+/**
+ * 🔥 Target server (Xray / panel / node)
+ * مثال:
+ * https://your-server.com:443
+ */
+const TARGET = process.env.TARGET_DOMAIN;
 
-app.all("*", async (req, res) => {
-  try {
-    if (!TARGET_DOMAIN) {
-      return res.status(500).send("TARGET_DOMAIN not set");
-    }
+// اگر تنظیم نشده
+if (!TARGET) {
+  console.log("❌ TARGET_DOMAIN is not set");
+  process.exit(1);
+}
 
-    const url = TARGET_DOMAIN + req.originalUrl;
-
-    const response = await fetch(url, {
-      method: req.method,
-      headers: {
-        ...req.headers,
-        host: new URL(TARGET_DOMAIN).host
-      },
-      body: req.method !== "GET" && req.method !== "HEAD"
-        ? JSON.stringify(req.body)
-        : undefined
-    });
-
-    const data = await response.text();
-
-    res.status(response.status).send(data);
-  } catch (err) {
-    res.status(500).send("Relay error: " + err.message);
-  }
+const proxy = createProxyServer({
+  target: TARGET,
+  changeOrigin: true,
+  ws: true,
+  secure: false,
 });
 
-const port = process.env.PORT || 3000;
-app.listen(port, () => {
-  console.log("Server running on port", port);
+// HTTP proxy
+app.use((req, res) => {
+  proxy.web(req, res);
+});
+
+// WebSocket support (مهم برای VLESS WS / XHTTP relay)
+const server = http.createServer(app);
+
+server.on("upgrade", (req, socket, head) => {
+  proxy.ws(req, socket, head);
+});
+
+const PORT = process.env.PORT || 3000;
+
+server.listen(PORT, () => {
+  console.log("🚀 Railway XHTTP Relay running on port", PORT);
+  console.log("➡️ Target:", TARGET);
 });
